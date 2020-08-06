@@ -1,7 +1,7 @@
 import * as core from '@actions/core';
 import node_ssh from 'node-ssh';
 import fs from "fs";
-import {keyboardFunction} from './keyboard';
+import { keyboardFunction } from './keyboard';
 
 async function run() {
   const host: string = core.getInput('host') || 'localhost';
@@ -17,6 +17,9 @@ async function run() {
   const local: string = core.getInput('local');
   const remote: string = core.getInput('remote');
 
+  const preCommand: string = core.getInput("preCommand");
+  const postCommand: string = core.getInput("postCommit");
+
   try {
     const ssh = await connect(
       host,
@@ -27,7 +30,18 @@ async function run() {
       passphrase,
       tryKeyboard
     );
+    
+    if(preCommand) {
+      const result = await ssh.execCommand(preCommand);
+      console.log(result);
+    }
+
     await scp(ssh, local, remote, concurrency, verbose, recursive);
+
+    if(postCommand){
+      const result = await ssh.execCommand(postCommand);
+      console.log(result);
+    }
 
     ssh.dispose();
   } catch (err) {
@@ -56,6 +70,7 @@ async function connect(
       passphrase: passphrase,
       privateKey: privateKey,
       tryKeyboard: tryKeyboard,
+      // @ts-ignore
       onKeyboardInteractive: tryKeyboard ? keyboardFunction(password) : null
     });
     console.log(`🤝 Connected to ${host}.`);
